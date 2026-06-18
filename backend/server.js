@@ -11,16 +11,18 @@ import resumeRoutes from './routes/resume.js';
 import analysisRoutes from './routes/analysis.js';
 import paymentRoutes from './routes/payment.js';
 
-dns.setServers(['8.8.8.8', '1.1.1.1']);
-
 dotenv.config();
+
+dns.setServers(['8.8.8.8', '1.1.1.1']);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// ✅ FIXED CORS (THIS IS THE IMPORTANT PART)
+app.use(express.json());
+
+// ✅ FIXED CORS (IMPORTANT)
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -29,33 +31,41 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
-
+// static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
+// logger
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
+// routes
 app.use('/api/auth', authRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/payment', paymentRoutes);
 
-// Test route
+// test route
 app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Skill Analyzer API Running 🚀'
-  });
+  res.json({ success: true, message: 'Skill Analyzer API Running 🚀' });
 });
 
-// MongoDB
+// mongodb
 async function startServer() {
-  await mongoose.connect(process.env.MONGO_URI);
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
 
-  const PORT = process.env.PORT || 5000;
+    const PORT = process.env.PORT || 5000;
 
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-  });
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
 }
 
 startServer();
