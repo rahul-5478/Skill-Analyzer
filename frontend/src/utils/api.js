@@ -1,13 +1,13 @@
-import axios from 'axios';
-import { useAuthStore } from '../store/authStore';
+import axios from "axios";
+import { useAuthStore } from "../store/authStore";
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL || 'https://your-render-backend.onrender.com';
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
-  baseURL: BASE_URL + '/api',
+  baseURL: `${BASE_URL}/api`,
 });
 
+// Attach token
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
@@ -16,12 +16,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle 401
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
       useAuthStore.getState().logout();
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
     return Promise.reject(err);
   }
