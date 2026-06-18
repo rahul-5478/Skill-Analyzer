@@ -1,91 +1,28 @@
-import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import authMiddleware from '../middleware/auth.js';
 
-const router = express.Router();
-
-// ✅ TEST ROUTE (IMPORTANT FOR DEBUG)
-router.get('/test', (req, res) => {
-  res.json({ message: "Auth route working 🚀" });
-});
-
-// REGISTER
-router.post('/register', async (req, res) => {
+const authMiddleware = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'All fields required' });
+    if (!token) {
+      return res.status(401).json({ message: 'No token' });
     }
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return res.status(400).json({ message: 'Email already registered' });
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.create({ name, email, password });
+    const user = await User.findById(decoded.id).select('-password');
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        premiumAnalyses: user.premiumAnalyses
-      }
-    });
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// LOGIN
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'User not found' });
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        premiumAnalyses: user.premiumAnalyses
-      }
-    });
+    req.user = user;
+    next();
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(401).json({ message: 'Invalid token' });
   }
-});
+};
 
-// PROFILE
-router.get('/me', authMiddleware, (req, res) => {
-  res.json({ user: req.user });
-});
-
-export default router;
+export default authMiddleware;
